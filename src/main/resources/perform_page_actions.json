@@ -1,0 +1,29 @@
+{
+  "name": "perform_page_actions",
+  "description": "Uses selenium perform actions in the page like filling inputs, search, clicks, etc. Returns a summary of the HTML content the current page after all the actions were performed, with text elements, links and buttons, with associated xpath.",
+  "parameters": {
+    "type": "array",
+    "description": "array of actions to be performed by selenium automation",
+    "items": {
+      "type": "object",
+      "properties": {
+        "action_type": {
+          "type": "string",
+          "description": "One of the two action types supported: FILL_INPUT or CLICK",
+          "enum": [
+            "FILL_INPUT",
+            "CLICK"
+          ]
+        },
+        "element_identifier": {
+          "type": "string",
+          "description": "The xpath of the element for which the action is performed. In case of a FILL_INPUT, it will be the xpath of the input element. In case of a CLICK, it will be the xpath of the button/link to be clicked."
+        },
+        "value": {
+          "type": "string",
+          "description": "The value of the action. In case of a FILL_INPUT, it will contain the string value to be filled. In case of a CLICK, it will be empty."
+        }
+      }
+    }
+  }
+}

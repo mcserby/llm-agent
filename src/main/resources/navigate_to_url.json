@@ -1,0 +1,13 @@
+{
+  "name": "navigate_to_url",
+  "description": "Uses selenium to navigate to the specified URL. The result is a summary of the HTML content of that page, with text elements, links and buttons, with associated xpath.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string",
+        "description": "the url to navigate to"
+      }
+    }
+  }
+}

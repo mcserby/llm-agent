@@ -1,0 +1,45 @@
+{
+  "functionDeclarations": [
+    {
+      "name": "navigate_to_url",
+      "description": "Uses selenium to navigate to the specified URL. The result is a summary of the HTML content of that page, with text elements, links and buttons, with associated xpath.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "url": {
+            "type": "STRING"
+          }
+        }
+      }
+    },
+    {
+      "name": "perform_page_actions",
+      "description": "Uses selenium perform actions in the page like filling inputs, search, clicks, etc. Returns a summary of the HTML content the current page after all the actions were performed, with text elements, links and buttons, with associated xpath.",
+      "parameters": {
+        "type": "ARRAY",
+        "description": "array of actions to be performed by selenium automation",
+        "items": {
+          "type": "OBJECT",
+          "properties": {
+            "action_type": {
+              "type": "STRING",
+              "description": "One of the two action types supported: FILL_INPUT or CLICK",
+              "enum": [
+                "FILL_INPUT",
+                "CLICK"
+              ]
+            },
+            "element_identifier": {
+              "type": "STRING",
+              "description": "The xpath of the element for which the action is performed. In case of a FILL_INPUT, it will be the xpath of the input element. In case of a CLICK, it will be the xpath of the button/link to be clicked."
+            },
+            "value": {
+              "type": "STRING",
+              "description": "The value of the action. In case of a FILL_INPUT, it will contain the string value to be filled. In case of a CLICK, it will be empty."
+            }
+          }
+        }
+      }
+    }
+  ]
+}
