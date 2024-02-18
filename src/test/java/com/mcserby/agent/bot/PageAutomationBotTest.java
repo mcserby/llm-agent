@@ -22,7 +22,7 @@ class PageAutomationBotTest {
     PageAutomationBot pageAutomationBot;
 
     @Test
-    void performActions() {
+    void performActions() throws InterruptedException {
         UUID sessionId = UUID.randomUUID();
         Observation observation = pageAutomationBot.performActions(sessionId, List.of(new Action(ActionType.NAVIGATE_TO_URL, null, "https://www.accesa.eu")));
         assertNotNull(observation);

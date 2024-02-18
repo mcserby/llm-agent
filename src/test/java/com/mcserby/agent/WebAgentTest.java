@@ -23,8 +23,21 @@ class WebAgentTest {
     private PageAutomationBot pageAutomationBot;
 
     @Test
-    void reasonActOnTask() throws IOException {
-        WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT.prompt, 4);
-        agent.reasonActOnTask("Search on accesa website, https://accesa.eu, and find the services they provide.");
+    void reasonActOnTask() throws Exception {
+        WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT_V2.prompt, 4);
+        agent.reasonActOnTask("Task: Based on bosch official website, https://www.bosch.ro/en, do they offer flexible working hours as benefit?");
     }
+
+    @Test
+    void reasonActOnTaskBoschWorkingHours() throws Exception {
+        WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT_V2.prompt, 8);
+        agent.reasonActOnTask("Task: Based on bosch official website, https://www.bosch.ro/en, do they offer flexible working hours as benefit?");
+    }
+
+    @Test
+    void amazonCheapestTrimmer() throws Exception {
+        WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT_V2.prompt, 8);
+        agent.reasonActOnTask("Task: What is the cheapest trimmer for men you can find on https://www.amazon.de/ website?");
+    }
+
 }

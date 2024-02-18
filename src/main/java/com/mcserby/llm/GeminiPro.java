@@ -29,10 +29,10 @@ public class GeminiPro implements LlmModel {
         this.visionModel = vertexAiProperties.visionModel();
         this.location = vertexAiProperties.location();
         this.generationConfig = GenerationConfig.newBuilder()
-                .setTopK(5)
+                .setTopK(1)
                 .setTopP(0.8f)
-                .setTemperature(0.2f)
-                .setMaxOutputTokens(200)
+                .setTemperature(0.5f)
+                .setMaxOutputTokens(1000)
                 .build();
     }
 
@@ -50,9 +50,8 @@ public class GeminiPro implements LlmModel {
                     .setVertexAi(vertexAI)
                     .setTools(tools.stream().map(this::parseTool).toList())
                     .build();
-            GenerateContentResponse response = model.generateContent(ContentMaker
+            return model.generateContent(ContentMaker
                     .fromString(prompt));
-            return response;
         }
     }
 

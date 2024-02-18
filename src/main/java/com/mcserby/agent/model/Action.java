@@ -8,10 +8,9 @@ public record Action(@JsonAlias("action_type") ActionType actionType,
 
     @Override
     public String toString() {
-        return "Action performed: {" +
-                "actionType=" + actionType +
-                ((elementIdentifier != null)? ", elementIdentifier='" + elementIdentifier + '\'' : "") +
-                ", value='" + value + '\'' +
-                '}';
+        return "Action: " +
+                actionType.name().toLowerCase() + " " +
+                ((elementIdentifier != null)? " '" + elementIdentifier + '\'' : "") +
+                value;
     }
 }

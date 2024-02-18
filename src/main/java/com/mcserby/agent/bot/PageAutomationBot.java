@@ -1,6 +1,7 @@
 package com.mcserby.agent.bot;
 
 import com.google.common.base.Charsets;
+import com.mcserby.agent.WebAgent;
 import com.mcserby.agent.model.Action;
 import com.mcserby.agent.model.Element;
 import com.mcserby.agent.model.Observation;
@@ -9,6 +10,11 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeDriverService;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.remote.DesiredCapabilities;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -19,6 +25,8 @@ import java.util.stream.IntStream;
 
 @Component
 public class PageAutomationBot {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PageAutomationBot.class);
 
     private final Map<UUID, WebDriver> sessions = new HashMap<>();
     private final List<String> filteredElements = List.of("script", "noscript", "img", "style", "svg", "iframe");
@@ -32,12 +40,16 @@ public class PageAutomationBot {
         }
     }
 
-    public Observation performActions(UUID sessionId, List<Action> actions) {
+    public Observation performActions(UUID sessionId, List<Action> actions) throws InterruptedException {
+        LOGGER.info("Performing actions: {}", actions);
         WebDriver driver;
         if(sessions.containsKey(sessionId)){
             driver = sessions.get(sessionId);
         } else {
-            driver = new ChromeDriver();
+            ChromeOptions options = new ChromeOptions();
+            options.addArguments("profile-directory=Profile 1");
+            options.addArguments("user-data-dir=C:/Users/mihai.serban/AppData/Local/Google/Chrome/User Data");
+            driver = new ChromeDriver(options);
         }
         for (Action action : actions) {
             switch (action.actionType()) {
@@ -45,10 +57,16 @@ public class PageAutomationBot {
                     driver.get(action.value());
                     break;
                 case FILL_INPUT:
+                    WebElement inputElement = driver.findElement(By.xpath(action.elementIdentifier()));
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", inputElement);
+                    Thread.sleep(500);
                     driver.findElement(By.xpath(action.elementIdentifier())).sendKeys(action.value());
                     break;
                 case CLICK:
-                    driver.findElement(By.xpath(action.elementIdentifier())).click();
+                    WebElement element = driver.findElement(By.xpath(action.elementIdentifier()));
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", element);
+                    Thread.sleep(500);
+                    element.click();
                     break;
             }
         }
@@ -82,7 +100,7 @@ public class PageAutomationBot {
                 .map(entry -> IntStream
                         .range(0, entry.getValue().size())
                         .mapToObj(elementNumber -> recursiveTreeTraversal(
-                                currentXpath + "/" + entry.getKey() + "[" + (elementNumber + 1) + "]",
+                                currentXpath + "/" + entry.getKey() + ((entry.getValue().size() > 1)? "[" + (elementNumber + 1) + "]": ""),
                                 entry.getValue().get(elementNumber)))
                         .flatMap(List::stream)
                         .toList())
