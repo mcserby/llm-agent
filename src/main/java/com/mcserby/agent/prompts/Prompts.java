@@ -76,11 +76,9 @@ public enum Prompts {
             You never generate an observation, you just analyze it, if present in the conversation.
             
             At each step, you respond with either a Thought or an Action, based on previous Observation. If you can solve the task, respond with: Answer: <your answer>.
+            Your chain of thoughts and actions should get more and more specific and should lead you closer and closer to solving the initial task.
             
-            Your answer will be evaluated based on the quality of the thought process and the quality of the final answer.
-            
-            You must respond with one of the following lines:
-                     
+            Response format:
             Thought: <your thought>
             or
             Action: <action_name> <action_parameter_1> <action_parameter_2>

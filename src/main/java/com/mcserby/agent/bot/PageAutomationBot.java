@@ -1,7 +1,6 @@
 package com.mcserby.agent.bot;
 
 import com.google.common.base.Charsets;
-import com.mcserby.agent.WebAgent;
 import com.mcserby.agent.model.Action;
 import com.mcserby.agent.model.Element;
 import com.mcserby.agent.model.Observation;
@@ -10,14 +9,11 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.remote.DesiredCapabilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -81,31 +77,67 @@ public class PageAutomationBot {
     }
 
     private List<Element> recursiveTreeTraversal(String currentXpath, WebElement element) {
-        if (filteredElements.contains(element.getTagName())) {
+        String tagName = element.getTagName();
+        if (filteredElements.contains(tagName)) {
             return List.of();
         }
         if (element.getText().isEmpty()) {
             return List.of();
         }
+        Element currentElement = toElement(currentXpath, element);
+        if(tagName.equals("button") || tagName.equals("a") || tagName.equals("input")){
+            return List.of(currentElement);
+        }
         List<WebElement> directChildren = element.findElements(By.xpath("./*"));
         if (directChildren.isEmpty()) {
-            return List.of(new Element(element.getAttribute("href"),
-                    element.getTagName(),
-                    element.getText(),
-                    currentXpath));
+            return List.of(currentElement);
         }
         Map<String, List<WebElement>> elementsGroupedByType = directChildren.stream()
                 .collect(Collectors.groupingBy(WebElement::getTagName));
-        return elementsGroupedByType.entrySet().stream()
+        List<Element> children = elementsGroupedByType.entrySet().stream()
                 .map(entry -> IntStream
                         .range(0, entry.getValue().size())
                         .mapToObj(elementNumber -> recursiveTreeTraversal(
-                                currentXpath + "/" + entry.getKey() + ((entry.getValue().size() > 1)? "[" + (elementNumber + 1) + "]": ""),
+                                calculateXpath(currentXpath, entry, elementNumber),
                                 entry.getValue().get(elementNumber)))
                         .flatMap(List::stream)
                         .toList())
                 .flatMap(List::stream)
                 .toList();
+
+        if(tagName.equals("nav") || tagName.equals("header") || tagName.equals("footer") || tagName.equals("section")){
+            return List.of(currentElement.withChildren(children));
+        }
+        return children;
+
+    }
+
+    private static String calculateXpath(String currentXpath, Map.Entry<String, List<WebElement>> entry, int elementNumber) {
+        WebElement element = entry.getValue().get(elementNumber);
+        //if(element.getAttribute("id") == null || element.getAttribute("id").isEmpty()) {
+            return currentXpath + "/" + entry.getKey() + ((entry.getValue().size() > 1) ? "[" + (elementNumber + 1) + "]" : "");
+       // } else {
+      //      return "[@id='" + element.getAttribute("id") + "']";
+       // }
+    }
+
+    private Element toElement(String currentXpath, WebElement element) {
+        return new Element(element.getTagName(),
+                currentXpath,
+                element.getAttribute("href"),
+                element.getAttribute("id"),
+                element.getAttribute("placeholder"),
+                getTextOrValue(element),
+                element.getAttribute("type"),
+                getLabelOrAreaLabel(element), List.of());
+    }
+
+    private String getLabelOrAreaLabel(WebElement element) {
+        return element.getAttribute("label") != null? element.getAttribute("label") : element.getAttribute("area-label");
+    }
+
+    private String getTextOrValue(WebElement element) {
+        return element.getText() != null? element.getText() : element.getAttribute("value");
     }
 
     public void closeSession(UUID sessionId) {

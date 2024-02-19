@@ -31,38 +31,42 @@ public class WebAgent {
         conversation.add(system);
     }
 
-    public void reasonActOnTask(String task) throws Exception {
+    public void reasonActOnTask(String task) {
         UUID sessionId = UUID.randomUUID();
         LOGGER.info("Reasoning and acting on task: {}", task);
         this.conversation.add(new Message(MessageType.TASK, task));
         int currentStep = 0;
         GenerateContentResponse currentResult = null;
-        while (currentStep < maxNumberOfSteps) {
-            currentStep++;
-            LOGGER.info("Current step: {}", currentStep);
-            String conversationSoFar = buildCurrentPrompt(this.conversation);
-            currentResult = model.generate(conversationSoFar);
-            Optional<Message> maybeTaskIsSolved = taskIsSolved(currentResult);
-            if (maybeTaskIsSolved.isPresent()) {
-                LOGGER.info("Task is solved: {}", maybeTaskIsSolved.get());
-                this.conversation.add(maybeTaskIsSolved.get());
-                break;
-            }
-            List<String> thoughts = extractThoughts(currentResult);
-            thoughts.stream().map(t -> new Message(MessageType.THOUGHT, t)).forEach(this.conversation::add);
+        try {
+            while (currentStep < maxNumberOfSteps) {
+                LOGGER.info("Current step: {}", currentStep++);
+                String conversationSoFar = buildCurrentPrompt(this.conversation);
+                currentResult = model.generate(conversationSoFar);
+                Optional<Message> maybeTaskIsSolved = taskIsSolved(currentResult);
+                if (maybeTaskIsSolved.isPresent()) {
+                    LOGGER.info("Task is solved: {}", maybeTaskIsSolved.get());
+                    this.conversation.add(maybeTaskIsSolved.get());
+                    break;
+                }
+                List<String> thoughts = extractThoughts(currentResult);
+                thoughts.stream().map(t -> new Message(MessageType.THOUGHT, t)).forEach(this.conversation::add);
 
-            List<Action> actions = extractAction(currentResult);
-            actions.stream().map(a -> new Message(MessageType.ACTION, a.toString())).forEach(this.conversation::add);
+                List<Action> actions = extractAction(currentResult);
+                actions.stream().map(a -> new Message(MessageType.ACTION, a.toString())).forEach(this.conversation::add);
 
-            if(!actions.isEmpty()){
-                Observation observation = pageAutomationBot.performActions(sessionId, actions);
-                this.conversation.add(new Message(MessageType.OBSERVATION, observation.render()));
+                if (!actions.isEmpty()) {
+                    Observation observation = pageAutomationBot.performActions(sessionId, actions);
+                    this.conversation.add(new Message(MessageType.OBSERVATION, observation.render()));
+                }
             }
+        } catch (Exception e){
+            LOGGER.error("Error while reasoning and acting on task", e);
+        } finally {
+            pageAutomationBot.closeSession(sessionId);
         }
-        LOGGER.info("Final result: {}", getResponseAsText(currentResult));
-        LOGGER.info("Prompt: {}", buildCurrentPrompt(this.conversation));
         LOGGER.info(this.conversation.getLast().toString());
-        pageAutomationBot.closeSession(sessionId);
+        LOGGER.info("Full Prompt: {}", buildCurrentPrompt(this.conversation));
+        LOGGER.info("Final result: {}", getResponseAsText(currentResult));
     }
 
     private String buildCurrentPrompt(List<Message> conversation) {

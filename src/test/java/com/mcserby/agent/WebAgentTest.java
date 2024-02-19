@@ -23,21 +23,33 @@ class WebAgentTest {
     private PageAutomationBot pageAutomationBot;
 
     @Test
-    void reasonActOnTask() throws Exception {
-        WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT_V2.prompt, 4);
-        agent.reasonActOnTask("Task: Based on bosch official website, https://www.bosch.ro/en, do they offer flexible working hours as benefit?");
+    void reasonActOnAccesaSuccessStory() throws Exception {
+        WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT_V2.prompt, 5);
+        agent.reasonActOnTask("Task: Can you extract one success story from Accesa official website, https://accesa.eu?");
+    }
+
+    @Test
+    void reasonActOnAccesaProvidedServices() throws Exception {
+        WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT_V2.prompt, 5);
+        agent.reasonActOnTask("Task: What are the services provided by Accesa, as described on their official website?");
     }
 
     @Test
     void reasonActOnTaskBoschWorkingHours() throws Exception {
-        WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT_V2.prompt, 8);
+        WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT_V2.prompt, 6);
         agent.reasonActOnTask("Task: Based on bosch official website, https://www.bosch.ro/en, do they offer flexible working hours as benefit?");
     }
 
     @Test
     void amazonCheapestTrimmer() throws Exception {
-        WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT_V2.prompt, 8);
-        agent.reasonActOnTask("Task: What is the cheapest trimmer for men you can find on https://www.amazon.de/ website?");
+        WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT_V2.prompt, 6);
+        agent.reasonActOnTask("Task: Search for the cheapest hair trimmer for men you can find on www.amazon.de website and give me the price.");
+    }
+
+    @Test
+    void buyCoffeFromEmagRo() throws Exception {
+        WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT_V2.prompt, 6);
+        agent.reasonActOnTask("Task: Cumpara-mi o punga de cafea jacobs de pe emag.ro. Trimite-mi link-ul produsului la final.");
     }
 
 }
