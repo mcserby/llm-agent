@@ -10,7 +10,7 @@ public record Action(@JsonAlias("action_type") ActionType actionType,
     public String toString() {
         return "Action: " +
                 actionType.name().toLowerCase() + " " +
-                ((elementIdentifier != null)? " '" + elementIdentifier + '\'' : "") +
-                value;
+                ((elementIdentifier != null)? " " + elementIdentifier : "") +
+                ((value != null)? " '" + value + '\'' : "");
     }
 }

@@ -3,12 +3,14 @@ package com.mcserby.agent;
 import com.google.cloud.vertexai.api.*;
 import com.google.protobuf.Value;
 import com.mcserby.agent.bot.PageAutomationBot;
-import com.mcserby.agent.model.*;
+import com.mcserby.agent.model.Action;
+import com.mcserby.agent.model.ActionType;
+import com.mcserby.agent.model.Message;
+import com.mcserby.agent.model.MessageType;
 import com.mcserby.llm.LlmModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -34,7 +36,7 @@ public class WebAgent {
     public void reasonActOnTask(String task) {
         UUID sessionId = UUID.randomUUID();
         LOGGER.info("Reasoning and acting on task: {}", task);
-        this.conversation.add(new Message(MessageType.TASK, task));
+        this.conversation.add(new Message(MessageType.TASK, task, false));
         int currentStep = 0;
         GenerateContentResponse currentResult = null;
         try {
@@ -42,6 +44,7 @@ public class WebAgent {
                 LOGGER.info("Current step: {}", currentStep++);
                 String conversationSoFar = buildCurrentPrompt(this.conversation);
                 currentResult = model.generate(conversationSoFar);
+                LOGGER.info("LLM response: {}", getResponseAsText(currentResult));
                 Optional<Message> maybeTaskIsSolved = taskIsSolved(currentResult);
                 if (maybeTaskIsSolved.isPresent()) {
                     LOGGER.info("Task is solved: {}", maybeTaskIsSolved.get());
@@ -49,15 +52,11 @@ public class WebAgent {
                     break;
                 }
                 List<String> thoughts = extractThoughts(currentResult);
-                thoughts.stream().map(t -> new Message(MessageType.THOUGHT, t)).forEach(this.conversation::add);
+                thoughts.stream().map(t -> new Message(MessageType.THOUGHT, t, false)).forEach(this.conversation::add);
 
                 List<Action> actions = extractAction(currentResult);
-                actions.stream().map(a -> new Message(MessageType.ACTION, a.toString())).forEach(this.conversation::add);
-
-                if (!actions.isEmpty()) {
-                    Observation observation = pageAutomationBot.performActions(sessionId, actions);
-                    this.conversation.add(new Message(MessageType.OBSERVATION, observation.render()));
-                }
+                actions.stream().map(a -> new Message(MessageType.ACTION, a.toString(), false)).forEach(this.conversation::add);
+                actions.stream().map(a -> pageAutomationBot.performAction(sessionId, a)).forEach(this.conversation::add);
             }
         } catch (Exception e){
             LOGGER.error("Error while reasoning and acting on task", e);
@@ -78,7 +77,7 @@ public class WebAgent {
         return IntStream.range(0, conversation.size())
                 .mapToObj(index -> {
                     Message message = conversation.get(index);
-                    if (index != indexOfLastObservation && message.type() == MessageType.OBSERVATION) {
+                    if (index != indexOfLastObservation && message.type() == MessageType.OBSERVATION && message.canOmitForBrevity()) {
                         return message.omittedForBrevity();
                     }
                     return message.toString();
@@ -152,7 +151,7 @@ public class WebAgent {
     private Optional<Action> toAction(String actionAsString) {
         // navigate_to_url, click_element, send_keys_to_element
         String function = actionAsString.replace("Action: ", "").trim();
-        String[] functionParts = function.split(" ");
+        String[] functionParts = function.split("\\h+");
         if(functionParts.length < 2){
             LOGGER.error("Invalid action: {}", actionAsString);
             return Optional.empty();
@@ -177,7 +176,8 @@ public class WebAgent {
                 .filter(part -> part.getText().contains("Answer:"))
                 .findFirst()
                 .map(part -> new Message(MessageType.ANSWER,
-                        part.getText().substring(part.getText().indexOf("Answer:"))));
+                        part.getText().substring(part.getText().indexOf("Answer:")),
+                        false));
     }
 
 }

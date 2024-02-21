@@ -31,7 +31,7 @@ class WebAgentTest {
     @Test
     void reasonActOnAccesaProvidedServices() throws Exception {
         WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT_V2.prompt, 5);
-        agent.reasonActOnTask("Task: What are the services provided by Accesa, as described on their official website?");
+        agent.reasonActOnTask("Task: What are the services provided by Accesa on their website https://accesa.eu, as described on their official website?");
     }
 
     @Test
@@ -49,7 +49,7 @@ class WebAgentTest {
     @Test
     void buyCoffeFromEmagRo() throws Exception {
         WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT_V2.prompt, 6);
-        agent.reasonActOnTask("Task: Cumpara-mi o punga de cafea jacobs de pe emag.ro. Trimite-mi link-ul produsului la final.");
+        agent.reasonActOnTask("Task: Cauta pe www.emag.ro cel mai ieftin telefon samsung si adauga-l in cos.");
     }
 
 }

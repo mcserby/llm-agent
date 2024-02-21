@@ -37,12 +37,12 @@ public class GeminiPro implements LlmModel {
     }
 
     @Override
-    public GenerateContentResponse generate(String prompt) throws IOException {
+    public GenerateContentResponse generate(String prompt) {
         return generate(prompt, List.of());
     }
 
     @Override
-    public GenerateContentResponse generate(String prompt, List<String> tools) throws IOException {
+    public GenerateContentResponse generate(String prompt, List<String> tools) {
         try (VertexAI vertexAI = new VertexAI(this.project, this.location)) {
             GenerativeModel model = GenerativeModel.newBuilder()
                     .setModelName(this.predictModel)
@@ -52,6 +52,8 @@ public class GeminiPro implements LlmModel {
                     .build();
             return model.generateContent(ContentMaker
                     .fromString(prompt));
+        } catch (Exception e){
+            throw new RuntimeException("Failed to generate content", e);
         }
     }
 

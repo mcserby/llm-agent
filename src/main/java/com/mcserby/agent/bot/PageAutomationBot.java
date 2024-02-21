@@ -1,9 +1,7 @@
 package com.mcserby.agent.bot;
 
 import com.google.common.base.Charsets;
-import com.mcserby.agent.model.Action;
-import com.mcserby.agent.model.Element;
-import com.mcserby.agent.model.Observation;
+import com.mcserby.agent.model.*;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -23,9 +21,9 @@ import java.util.stream.IntStream;
 public class PageAutomationBot {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PageAutomationBot.class);
-
     private final Map<UUID, WebDriver> sessions = new HashMap<>();
-    private final List<String> filteredElements = List.of("script", "noscript", "img", "style", "svg", "iframe");
+    private static final List<String> XPATH_ELEMENTS = List.of("input", "button", "a", "select", "textarea", "label");
+    private static final List<String> FILTERED_ELEMENTS = List.of("script", "noscript", "img", "style", "svg", "iframe");
     private final String tool;
 
     public PageAutomationBot() {
@@ -36,56 +34,74 @@ public class PageAutomationBot {
         }
     }
 
-    public Observation performActions(UUID sessionId, List<Action> actions) throws InterruptedException {
-        LOGGER.info("Performing actions: {}", actions);
+    public Message performAction(UUID sessionId, Action action) {
+        LOGGER.info("Performing action: {}", action);
         WebDriver driver;
-        if(sessions.containsKey(sessionId)){
+        if (sessions.containsKey(sessionId)) {
             driver = sessions.get(sessionId);
         } else {
-            ChromeOptions options = new ChromeOptions();
-            options.addArguments("profile-directory=Profile 1");
-            options.addArguments("user-data-dir=C:/Users/mihai.serban/AppData/Local/Google/Chrome/User Data");
-            driver = new ChromeDriver(options);
+            driver = initDriver();
         }
-        for (Action action : actions) {
-            switch (action.actionType()) {
-                case NAVIGATE_TO_URL:
+        switch (action.actionType()) {
+            case NAVIGATE_TO_URL:
+                if (driver.getCurrentUrl().equals(action.value())) {
+                    LOGGER.info("Preventing LLM Agent loop by not navigating to the same URL...");
+                    Observation observation = new Observation("You are already on web page " + action.value() + ". Think of more meaningful actions.", List.of());
+                    return new Message(MessageType.OBSERVATION, observation.render(), false);
+                } else {
                     driver.get(action.value());
                     break;
-                case FILL_INPUT:
-                    WebElement inputElement = driver.findElement(By.xpath(action.elementIdentifier()));
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", inputElement);
-                    Thread.sleep(500);
-                    driver.findElement(By.xpath(action.elementIdentifier())).sendKeys(action.value());
-                    break;
-                case CLICK:
-                    WebElement element = driver.findElement(By.xpath(action.elementIdentifier()));
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", element);
-                    Thread.sleep(500);
-                    element.click();
-                    break;
-            }
+                }
+            case FILL_INPUT:
+                WebElement inputElement = driver.findElement(By.xpath(action.elementIdentifier()));
+                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", inputElement);
+                trySleep(200);
+                driver.findElement(By.xpath(action.elementIdentifier())).sendKeys(action.value());
+                break;
+            case CLICK:
+                WebElement element = driver.findElement(By.xpath(action.elementIdentifier()));
+                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", element);
+                trySleep(200);
+                element.click();
+                break;
         }
         sessions.putIfAbsent(sessionId, driver);
-        return processHtml(driver);
+        return new Message(MessageType.OBSERVATION, processHtml(driver).render(), true);
+    }
+
+    private static WebDriver initDriver() {
+        WebDriver driver;
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("profile-directory=Profile 1");
+        options.addArguments("user-data-dir=C:/Users/mihai.serban/AppData/Local/Google/Chrome/User Data");
+        driver = new ChromeDriver(options);
+        return driver;
+    }
+
+    private void trySleep(int millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            LOGGER.error("Error while sleeping", e);
+        }
     }
 
     private Observation processHtml(WebDriver driver) {
         WebElement element = driver.findElement(By.tagName("body"));
         List<Element> elements = recursiveTreeTraversal("html/body", element);
-        return new Observation(elements);
+        return new Observation("web page elements:", elements);
     }
 
     private List<Element> recursiveTreeTraversal(String currentXpath, WebElement element) {
         String tagName = element.getTagName();
-        if (filteredElements.contains(tagName)) {
+        if (FILTERED_ELEMENTS.contains(tagName)) {
             return List.of();
         }
         if (element.getText().isEmpty()) {
             return List.of();
         }
         Element currentElement = toElement(currentXpath, element);
-        if(tagName.equals("button") || tagName.equals("a") || tagName.equals("input")){
+        if (tagName.equals("button") || tagName.equals("a") || tagName.equals("input")) {
             return List.of(currentElement);
         }
         List<WebElement> directChildren = element.findElements(By.xpath("./*"));
@@ -105,7 +121,7 @@ public class PageAutomationBot {
                 .flatMap(List::stream)
                 .toList();
 
-        if(tagName.equals("nav") || tagName.equals("header") || tagName.equals("footer") || tagName.equals("section")){
+        if (tagName.equals("nav") || tagName.equals("header") || tagName.equals("footer") || tagName.equals("section")) {
             return List.of(currentElement.withChildren(children));
         }
         return children;
@@ -115,15 +131,16 @@ public class PageAutomationBot {
     private static String calculateXpath(String currentXpath, Map.Entry<String, List<WebElement>> entry, int elementNumber) {
         WebElement element = entry.getValue().get(elementNumber);
         //if(element.getAttribute("id") == null || element.getAttribute("id").isEmpty()) {
-            return currentXpath + "/" + entry.getKey() + ((entry.getValue().size() > 1) ? "[" + (elementNumber + 1) + "]" : "");
-       // } else {
-      //      return "[@id='" + element.getAttribute("id") + "']";
-       // }
+        return currentXpath + "/" + entry.getKey() + ((entry.getValue().size() > 1) ? "[" + (elementNumber + 1) + "]" : "");
+        // } else {
+        //      return "[@id='" + element.getAttribute("id") + "']";
+        // }
     }
 
     private Element toElement(String currentXpath, WebElement element) {
+
         return new Element(element.getTagName(),
-                currentXpath,
+                shouldHaveXpath(element) ? currentXpath: null,
                 element.getAttribute("href"),
                 element.getAttribute("id"),
                 element.getAttribute("placeholder"),
@@ -132,12 +149,16 @@ public class PageAutomationBot {
                 getLabelOrAreaLabel(element), List.of());
     }
 
+    private boolean shouldHaveXpath(WebElement element) {
+        return XPATH_ELEMENTS.contains(element.getTagName());
+    }
+
     private String getLabelOrAreaLabel(WebElement element) {
-        return element.getAttribute("label") != null? element.getAttribute("label") : element.getAttribute("area-label");
+        return element.getAttribute("label") != null ? element.getAttribute("label") : element.getAttribute("area-label");
     }
 
     private String getTextOrValue(WebElement element) {
-        return element.getText() != null? element.getText() : element.getAttribute("value");
+        return element.getText() != null ? element.getText() : element.getAttribute("value");
     }
 
     public void closeSession(UUID sessionId) {

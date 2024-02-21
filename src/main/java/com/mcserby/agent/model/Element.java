@@ -20,14 +20,17 @@ public record Element(
     }
 
     private String toPseudoHtml() {
-        return "<" + tagName + " xpath='" + xpath + '\'' +
+        return "<" + tagName + xpathProperty() +
                 idProperty() + typeProperty() + hrefProperty() + placeholderProperty() + ">" +
-                textOrValue +
-                children.stream().map(Element::toPseudoHtml)
-                        .map(s -> "\t" + s + "\n").collect(Collectors.joining()) +
+                (children.isEmpty() ? textOrValue :
+                        "\n\t" + children.stream().map(Element::toPseudoHtml)
+                        .map(s -> "\t" + s + "\n").collect(Collectors.joining())) +
                 "</" + tagName + ">";
     }
 
+    private String xpathProperty() {
+        return prop("xpath", xpath);
+    }
     private String idProperty() {
         return prop("id", id);
     }
@@ -49,7 +52,7 @@ public record Element(
     }
 
     private String prop(String name, String value) {
-        return (value != null && !value.isEmpty()) ? "," + name + "='" + value + '\'' : "";
+        return (value != null && !value.isEmpty()) ? " " + name + "='" + value + '\'' : "";
     }
 
     public Element withChildren(List<Element> children) {

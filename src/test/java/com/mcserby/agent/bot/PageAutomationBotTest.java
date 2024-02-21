@@ -2,6 +2,7 @@ package com.mcserby.agent.bot;
 
 import com.mcserby.agent.model.Action;
 import com.mcserby.agent.model.ActionType;
+import com.mcserby.agent.model.Message;
 import com.mcserby.agent.model.Observation;
 import com.mcserby.llm.VertexAiProperties;
 import org.junit.jupiter.api.Test;
@@ -22,10 +23,10 @@ class PageAutomationBotTest {
     PageAutomationBot pageAutomationBot;
 
     @Test
-    void performActions() throws InterruptedException {
+    void performActions() {
         UUID sessionId = UUID.randomUUID();
-        Observation observation = pageAutomationBot.performActions(sessionId, List.of(new Action(ActionType.NAVIGATE_TO_URL, null, "https://www.accesa.eu")));
+        Message observation = pageAutomationBot.performAction(sessionId, new Action(ActionType.NAVIGATE_TO_URL, null, "https://www.accesa.eu"));
         assertNotNull(observation);
-        System.out.println(observation.render());
+        System.out.println(observation);
     }
 }

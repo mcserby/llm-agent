@@ -89,7 +89,7 @@ public enum Prompts {
     public final Message prompt;
 
     Prompts(String prompt) {
-        this.prompt = new Message(MessageType.INSTRUCTIONS, prompt);
+        this.prompt = new Message(MessageType.INSTRUCTIONS, prompt, false);
     }
 
 
