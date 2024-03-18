@@ -2,6 +2,9 @@ package com.mcserby.agent.bot;
 
 import com.google.common.base.Charsets;
 import com.mcserby.agent.model.*;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -87,12 +90,50 @@ public class PageAutomationBot {
     }
 
     private Observation processHtml(WebDriver driver) {
-        WebElement element = driver.findElement(By.tagName("body"));
-        List<Element> elements = recursiveTreeTraversal("html/body", element);
+        Document doc = Jsoup.parse(driver.getPageSource());
+        Element body = doc.body();
+        List<SimpleElement> elements = fastTreeTraversal("html/body", body);
         return new Observation("web page elements:", elements);
     }
 
-    private List<Element> recursiveTreeTraversal(String currentXpath, WebElement element) {
+    private List<SimpleElement> fastTreeTraversal(String currentXpath, Element element) {
+        String tagName = element.tagName();
+        if (FILTERED_ELEMENTS.contains(tagName)) {
+            return List.of();
+        }
+        if (!element.hasText()) {
+            return List.of();
+        }
+        SimpleElement currentElement = toJsoupElement(currentXpath, element);
+        if (tagName.equals("button") || tagName.equals("a") || tagName.equals("input")) {
+            return List.of(currentElement);
+        }
+        List<Element> directChildren = element.children();
+        if (directChildren.isEmpty()) {
+            return List.of(currentElement);
+        }
+        Map<String, List<Element>> elementsGroupedByType = directChildren.stream()
+                .collect(Collectors.groupingBy(Element::tagName));
+        List<SimpleElement> children = elementsGroupedByType.entrySet().stream()
+                .map(entry -> IntStream
+                        .range(0, entry.getValue().size())
+                        .mapToObj(elementNumber -> fastTreeTraversal(
+                                calculateJsoupXpath(currentXpath, entry, elementNumber),
+                                entry.getValue().get(elementNumber)))
+                        .flatMap(List::stream)
+                        .toList())
+                .flatMap(List::stream)
+                .toList();
+
+        if (tagName.equals("nav") || tagName.equals("header") || tagName.equals("footer") || tagName.equals("section")) {
+            return List.of(currentElement.withChildren(children));
+        }
+        return children;
+    }
+
+
+    @Deprecated(forRemoval = true, since = "in favor of jsoup faster parsing")
+    private List<SimpleElement> recursiveTreeTraversal(String currentXpath, WebElement element) {
         String tagName = element.getTagName();
         if (FILTERED_ELEMENTS.contains(tagName)) {
             return List.of();
@@ -100,7 +141,7 @@ public class PageAutomationBot {
         if (element.getText().isEmpty()) {
             return List.of();
         }
-        Element currentElement = toElement(currentXpath, element);
+        SimpleElement currentElement = toElement(currentXpath, element);
         if (tagName.equals("button") || tagName.equals("a") || tagName.equals("input")) {
             return List.of(currentElement);
         }
@@ -110,7 +151,7 @@ public class PageAutomationBot {
         }
         Map<String, List<WebElement>> elementsGroupedByType = directChildren.stream()
                 .collect(Collectors.groupingBy(WebElement::getTagName));
-        List<Element> children = elementsGroupedByType.entrySet().stream()
+        List<SimpleElement> children = elementsGroupedByType.entrySet().stream()
                 .map(entry -> IntStream
                         .range(0, entry.getValue().size())
                         .mapToObj(elementNumber -> recursiveTreeTraversal(
@@ -137,9 +178,29 @@ public class PageAutomationBot {
         // }
     }
 
-    private Element toElement(String currentXpath, WebElement element) {
+    private static String calculateJsoupXpath(String currentXpath, Map.Entry<String, List<org.jsoup.nodes.Element>> entry, int elementNumber) {
+        org.jsoup.nodes.Element element = entry.getValue().get(elementNumber);
+        //if(element.getAttribute("id") == null || element.getAttribute("id").isEmpty()) {
+        return currentXpath + "/" + entry.getKey() + ((entry.getValue().size() > 1) ? "[" + (elementNumber + 1) + "]" : "");
+        // } else {
+        //      return "[@id='" + element.getAttribute("id") + "']";
+        // }
+    }
 
-        return new Element(element.getTagName(),
+    private SimpleElement toJsoupElement(String currentXpath, Element element) {
+        return new SimpleElement(element.tagName(),
+                shouldHaveXpath(element) ? currentXpath: null,
+                element.hasAttr("href")? element.attribute("href").getValue(): null,
+                element.hasAttr("id")? element.attribute("id").getValue(): null,
+                element.hasAttr("placeholder")? element.attribute("placeholder").getValue(): null,
+                getTextOrValue(element),
+                element.hasAttr("type")? element.attribute("type").getValue(): null,
+                getLabelOrAreaLabel(element), List.of());
+    }
+
+    private SimpleElement toElement(String currentXpath, WebElement element) {
+
+        return new SimpleElement(element.getTagName(),
                 shouldHaveXpath(element) ? currentXpath: null,
                 element.getAttribute("href"),
                 element.getAttribute("id"),
@@ -153,12 +214,24 @@ public class PageAutomationBot {
         return XPATH_ELEMENTS.contains(element.getTagName());
     }
 
+    private boolean shouldHaveXpath(org.jsoup.nodes.Element element) {
+        return XPATH_ELEMENTS.contains(element.tagName());
+    }
+
     private String getLabelOrAreaLabel(WebElement element) {
         return element.getAttribute("label") != null ? element.getAttribute("label") : element.getAttribute("area-label");
     }
 
+    private String getLabelOrAreaLabel(org.jsoup.nodes.Element element) {
+        return element.hasAttr("label")? element.attribute("label").getValue() : element.hasAttr("area-label")? element.attribute("area-label").getValue(): null;
+    }
+
     private String getTextOrValue(WebElement element) {
         return element.getText() != null ? element.getText() : element.getAttribute("value");
+    }
+
+    private String getTextOrValue(Element element) {
+        return element.hasText() ? element.text() : element.hasAttr("value")? element.attribute("value").getValue(): null;
     }
 
     public void closeSession(UUID sessionId) {

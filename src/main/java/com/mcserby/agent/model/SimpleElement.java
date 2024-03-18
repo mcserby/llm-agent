@@ -3,7 +3,7 @@ package com.mcserby.agent.model;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public record Element(
+public record SimpleElement(
         String tagName,
         String xpath,
         String href,
@@ -12,7 +12,7 @@ public record Element(
         String textOrValue,
         String type,
         String areaLabelOrLabel,
-        List<Element> children) {
+        List<SimpleElement> children) {
 
     @Override
     public String toString() {
@@ -23,7 +23,7 @@ public record Element(
         return "<" + tagName + xpathProperty() +
                 idProperty() + typeProperty() + hrefProperty() + placeholderProperty() + ">" +
                 (children.isEmpty() ? textOrValue :
-                        "\n\t" + children.stream().map(Element::toPseudoHtml)
+                        "\n\t" + children.stream().map(SimpleElement::toPseudoHtml)
                         .map(s -> "\t" + s + "\n").collect(Collectors.joining())) +
                 "</" + tagName + ">";
     }
@@ -55,8 +55,8 @@ public record Element(
         return (value != null && !value.isEmpty()) ? " " + name + "='" + value + '\'' : "";
     }
 
-    public Element withChildren(List<Element> children) {
-        return new Element(
+    public SimpleElement withChildren(List<SimpleElement> children) {
+        return new SimpleElement(
                 tagName,
                 xpath,
                 href,
