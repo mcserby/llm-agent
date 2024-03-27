@@ -3,6 +3,7 @@ package com.mcserby.llm;
 import com.google.cloud.vertexai.VertexAI;
 import com.google.cloud.vertexai.api.GenerateContentResponse;
 import com.google.cloud.vertexai.api.GenerationConfig;
+import com.google.cloud.vertexai.api.SafetySetting;
 import com.google.cloud.vertexai.api.Tool;
 import com.google.cloud.vertexai.generativeai.ContentMaker;
 import com.google.cloud.vertexai.generativeai.GenerativeModel;
@@ -47,6 +48,7 @@ public class GeminiPro implements LlmModel {
             GenerativeModel model = GenerativeModel.newBuilder()
                     .setModelName(this.predictModel)
                     .setGenerationConfig(this.generationConfig)
+                    //.setSafetySettings(List.of(SafetySetting.newBuilder().setThreshold(SafetySetting.HarmBlockThreshold.BLOCK_NONE).build()))
                     .setVertexAi(vertexAI)
                     .setTools(tools.stream().map(this::parseTool).toList())
                     .build();

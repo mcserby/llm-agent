@@ -44,7 +44,8 @@ public class WebAgent {
                 LOGGER.info("Current step: {}", currentStep++);
                 String conversationSoFar = buildCurrentPrompt(this.conversation);
                 currentResult = model.generate(conversationSoFar);
-                LOGGER.info("LLM response: {}", getResponseAsText(currentResult));
+                LOGGER.info("LLM response metadata: {}. ", getResponseMetadata(currentResult));
+                LOGGER.info("LLM response text: {}", getResponseAsText(currentResult));
                 Optional<Message> maybeTaskIsSolved = taskIsSolved(currentResult);
                 if (maybeTaskIsSolved.isPresent()) {
                     LOGGER.info("Task is solved: {}", maybeTaskIsSolved.get());
@@ -66,6 +67,14 @@ public class WebAgent {
         LOGGER.info(this.conversation.getLast().toString());
         LOGGER.info("Full Prompt: {}", buildCurrentPrompt(this.conversation));
         LOGGER.info("Final result: {}", getResponseAsText(currentResult));
+    }
+
+    private String getResponseMetadata(GenerateContentResponse response) {
+        Candidate candidate = response.getCandidatesList().getFirst();
+        String finishMessage = candidate.getFinishMessage().isEmpty() ? "" : "Finish message: " + candidate.getFinishMessage();
+        String safetyRatings = candidate.getSafetyRatingsList().stream().map(sr -> "Blocked: " + sr.getBlocked() + ", " + sr.getCategory().name()).collect(Collectors.joining(", "));
+        int totalTokenCount = response.getUsageMetadata().getTotalTokenCount();
+        return finishMessage + ", Safety Ratings: " + safetyRatings + ", Total token count: " + totalTokenCount + ".";
     }
 
     private String buildCurrentPrompt(List<Message> conversation) {
@@ -157,7 +166,8 @@ public class WebAgent {
             return Optional.empty();
         }
         if (function.toLowerCase().contains("navigate_to_url")) {
-            return Optional.of(new Action(ActionType.NAVIGATE_TO_URL, null, functionParts[1]));
+            String url = sanitize(functionParts[1]);
+            return Optional.of(new Action(ActionType.NAVIGATE_TO_URL, null, url));
         }
         if (function.toLowerCase().contains("click_element")) {
             return Optional.of(new Action(ActionType.CLICK, functionParts[1], null));
@@ -166,6 +176,10 @@ public class WebAgent {
             return Optional.of(new Action(ActionType.FILL_INPUT, functionParts[1], functionParts[2]));
         }
         return Optional.empty();
+    }
+
+    private String sanitize(String url) {
+        return url.trim().replace("'", "").replace("\"", "").replace("`", "");
     }
 
     private Optional<Message> taskIsSolved(GenerateContentResponse currentResult) {

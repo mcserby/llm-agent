@@ -48,7 +48,7 @@ class WebAgentTest {
 
     @Test
     void buyCoffeFromEmagRo() throws Exception {
-        WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT_V2.prompt, 6);
+        WebAgent agent = new WebAgent(model, pageAutomationBot, Prompts.ZERO_SHOT_WEB_AGENT_PROMPT_V2.prompt, 15);
         agent.reasonActOnTask("Task: Cauta pe www.emag.ro cel mai ieftin telefon samsung si adauga-l in cos.");
     }
 

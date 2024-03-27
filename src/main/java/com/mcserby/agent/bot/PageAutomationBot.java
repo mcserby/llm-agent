@@ -56,13 +56,21 @@ public class PageAutomationBot {
                     break;
                 }
             case FILL_INPUT:
-                WebElement inputElement = driver.findElement(By.xpath(action.elementIdentifier()));
+                List<WebElement> fillElement = driver.findElements(By.xpath(action.elementIdentifier()));
+                if(fillElement.isEmpty()){
+                    return new Message(MessageType.OBSERVATION, "No element with XPATH: " + action.elementIdentifier() + " exists.", false);
+                }
+                WebElement inputElement = fillElement.getFirst();
                 ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", inputElement);
                 trySleep(200);
                 driver.findElement(By.xpath(action.elementIdentifier())).sendKeys(action.value());
                 break;
             case CLICK:
-                WebElement element = driver.findElement(By.xpath(action.elementIdentifier()));
+                List<WebElement> clickElements = driver.findElements(By.xpath(action.elementIdentifier()));
+                if(clickElements.isEmpty()){
+                    return new Message(MessageType.OBSERVATION, "No element with XPATH: " + action.elementIdentifier(), false);
+                }
+                WebElement element = clickElements.getFirst();
                 ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", element);
                 trySleep(200);
                 element.click();
@@ -90,10 +98,11 @@ public class PageAutomationBot {
     }
 
     private Observation processHtml(WebDriver driver) {
+        String currentUrl = driver.getCurrentUrl();
         Document doc = Jsoup.parse(driver.getPageSource());
         Element body = doc.body();
         List<SimpleElement> elements = fastTreeTraversal("html/body", body);
-        return new Observation("web page elements:", elements);
+        return new Observation("content of the website " + currentUrl + ":", elements);
     }
 
     private List<SimpleElement> fastTreeTraversal(String currentXpath, Element element) {
