@@ -59,7 +59,7 @@ public class WebAgent {
                 actions.stream().map(a -> new Message(MessageType.ACTION, a.toString(), false)).forEach(this.conversation::add);
                 actions.stream().map(a -> pageAutomationBot.performAction(sessionId, a)).forEach(this.conversation::add);
             }
-        } catch (Exception e){
+        } catch (Exception e) {
             LOGGER.error("Error while reasoning and acting on task", e);
         } finally {
             pageAutomationBot.closeSession(sessionId);
@@ -69,7 +69,30 @@ public class WebAgent {
         LOGGER.info("Final result: {}", getResponseAsText(currentResult));
     }
 
-    private String getResponseMetadata(GenerateContentResponse response) {
+    public Message solveTask(List<Message> conversation, UUID sessionId) {
+        try {
+            this.conversation.addAll(conversation);
+            String currentPrompt = buildCurrentPrompt(this.conversation);
+            LOGGER.info("Reasoning and acting on task: {}", currentPrompt);
+            GenerateContentResponse result = model.generate(currentPrompt);
+            List<String> thoughts = extractThoughts(result);
+            thoughts.stream().map(t -> new Message(MessageType.THOUGHT, t, false)).forEach(this.conversation::add);
+            List<Action> actions = extractOneLinerAction(result);
+            actions.stream().map(a -> pageAutomationBot.performAction(sessionId, a)).forEach(this.conversation::add);
+            return this.conversation.getLast();
+        } catch (Exception e) {
+            LOGGER.error("Error while reasoning and acting on task", e);
+            return new Message(MessageType.OBSERVATION, "Error while reasoning and acting on task.", false);
+        }
+    }
+
+    private static List<Action> extractOneLinerAction(GenerateContentResponse result) {
+        String responseAsText = getResponseAsText(result);
+        return toAction(responseAsText)
+                .map(List::of).orElse(List.of());
+    }
+
+    public static String getResponseMetadata(GenerateContentResponse response) {
         Candidate candidate = response.getCandidatesList().getFirst();
         String finishMessage = candidate.getFinishMessage().isEmpty() ? "" : "Finish message: " + candidate.getFinishMessage();
         String safetyRatings = candidate.getSafetyRatingsList().stream().map(sr -> "Blocked: " + sr.getBlocked() + ", " + sr.getCategory().name()).collect(Collectors.joining(", "));
@@ -77,7 +100,7 @@ public class WebAgent {
         return finishMessage + ", Safety Ratings: " + safetyRatings + ", Total token count: " + totalTokenCount + ".";
     }
 
-    private String buildCurrentPrompt(List<Message> conversation) {
+    public static String buildCurrentPrompt(List<Message> conversation) {
         long indexOfLastObservation = IntStream.range(0, conversation.size())
                 .filter(i -> conversation.get(i).type() == MessageType.OBSERVATION)
                 .max()
@@ -95,7 +118,7 @@ public class WebAgent {
 
     }
 
-    private List<String> extractThoughts(GenerateContentResponse currentResult) {
+    public static List<String> extractThoughts(GenerateContentResponse currentResult) {
         String lineContains = "Thought:";
         Stream<String> lineStream = extractSemiStructuredContent(currentResult, lineContains);
         List<String> thoughts = lineStream.toList();
@@ -108,7 +131,7 @@ public class WebAgent {
     private List<Action> extractAction(GenerateContentResponse currentResult) {
         String lineContains = "Action:";
         Stream<String> lineStream = extractSemiStructuredContent(currentResult, lineContains);
-        List<Action> actions = lineStream.map(this::toAction)
+        List<Action> actions = lineStream.map(WebAgent::toAction)
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .toList();
@@ -118,32 +141,30 @@ public class WebAgent {
         return actions;
     }
 
-    private static String getResponseAsText(GenerateContentResponse llmResponse){
-        Stream<String> textStream = extractTextStream(llmResponse);
+    public static String getResponseAsText(GenerateContentResponse llmResponse) {
+        Stream<String> textStream = extractLines(llmResponse);
         return textStream
                 .collect(Collectors.joining("\n"));
     }
 
-    private static Stream<String> extractTextStream(GenerateContentResponse llmResponse) {
+    public static Stream<String> extractLines(GenerateContentResponse llmResponse) {
         Candidate candidate = llmResponse.getCandidatesList().getFirst();
         Content content = candidate.getContent();
         List<Part> partsList = content.getPartsList();
         return partsList.stream()
                 .filter(Part::hasText)
-                .map(Part::getText);
-    }
-
-
-    private static Stream<String> extractSemiStructuredContent(GenerateContentResponse currentResult, String lineContains) {
-
-        Stream<String> textStream = extractTextStream(currentResult);
-
-        return textStream
-                .map(s -> Stream.of(s.split("\n")).filter(line -> line.contains(lineContains)).toList())
+                .map(Part::getText)
+                .map(s -> Stream.of(s.split("\n")).map(String::trim).filter(l -> !l.isEmpty()).toList())
                 .flatMap(List::stream);
     }
 
-    private Optional<Action> toAction(FunctionCall functionCall) {
+    public static Stream<String> extractSemiStructuredContent(GenerateContentResponse currentResult, String lineContains) {
+        Stream<String> textStream = extractLines(currentResult);
+        return textStream
+                .filter(line -> line.contains(lineContains));
+    }
+
+    public static Optional<Action> toAction(FunctionCall functionCall) {
         if (Arrays.stream(ActionType.values()).noneMatch(a -> a.name().equals(functionCall.getName().toUpperCase()))) {
             return Optional.empty();
         }
@@ -157,32 +178,39 @@ public class WebAgent {
         return Optional.of(new Action(type, elementIdentifier, value));
     }
 
-    private Optional<Action> toAction(String actionAsString) {
+    public static Optional<Action> toAction(String actionAsString) {
         // navigate_to_url, click_element, send_keys_to_element
         String function = actionAsString.replace("Action: ", "").trim();
         String[] functionParts = function.split("\\h+");
-        if(functionParts.length < 2){
+        if (functionParts.length < 2) {
             LOGGER.error("Invalid action: {}", actionAsString);
             return Optional.empty();
         }
-        if (function.toLowerCase().contains("navigate_to_url")) {
+        if (function.toUpperCase().contains("NAVIGATE_TO_URL")) {
             String url = sanitize(functionParts[1]);
             return Optional.of(new Action(ActionType.NAVIGATE_TO_URL, null, url));
         }
-        if (function.toLowerCase().contains("click_element")) {
+        if (function.toUpperCase().contains("BROWSE_TO")) {
+            String url = sanitize(functionParts[1]);
+            return Optional.of(new Action(ActionType.BROWSE_TO, null, url));
+        }
+        if (function.toUpperCase().contains("CLICK_ELEMENT")) {
             return Optional.of(new Action(ActionType.CLICK, functionParts[1], null));
         }
-        if (function.toLowerCase().contains("send_keys_to_element")) {
+        if (function.toUpperCase().contains("CLICK")) {
+            return Optional.of(new Action(ActionType.CLICK, functionParts[1], null));
+        }
+        if (function.toUpperCase().contains("SEARCH")) {
             return Optional.of(new Action(ActionType.FILL_INPUT, functionParts[1], functionParts[2]));
         }
         return Optional.empty();
     }
 
-    private String sanitize(String url) {
+    private static String sanitize(String url) {
         return url.trim().replace("'", "").replace("\"", "").replace("`", "");
     }
 
-    private Optional<Message> taskIsSolved(GenerateContentResponse currentResult) {
+    public static Optional<Message> taskIsSolved(GenerateContentResponse currentResult) {
         Candidate candidate = currentResult.getCandidatesList().getFirst();
         Content content = candidate.getContent();
         List<Part> partsList = content.getPartsList();
@@ -194,4 +222,7 @@ public class WebAgent {
                         false));
     }
 
+    public void closeSession(UUID sessionId) {
+        this.pageAutomationBot.closeSession(sessionId);
+    }
 }

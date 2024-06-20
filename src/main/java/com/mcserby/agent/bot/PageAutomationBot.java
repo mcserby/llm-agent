@@ -55,6 +55,14 @@ public class PageAutomationBot {
                     driver.get(action.value());
                     break;
                 }
+            case BROWSE_TO:
+                if (driver.getCurrentUrl().equals(action.value())) {
+                    LOGGER.info("Preventing LLM Agent loop by not navigating to the same URL...");
+                    break;
+                } else {
+                    driver.get(action.value());
+                    break;
+                }
             case FILL_INPUT:
                 List<WebElement> fillElement = driver.findElements(By.xpath(action.elementIdentifier()));
                 if(fillElement.isEmpty()){

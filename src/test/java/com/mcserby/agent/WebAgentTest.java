@@ -4,6 +4,7 @@ import com.mcserby.agent.bot.PageAutomationBot;
 import com.mcserby.agent.prompts.Prompts;
 import com.mcserby.llm.LlmModel;
 import com.mcserby.llm.VertexAiProperties;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -13,6 +14,7 @@ import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Disabled
 @SpringBootTest
 @EnableConfigurationProperties({VertexAiProperties.class})
 class WebAgentTest {

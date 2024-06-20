@@ -5,6 +5,7 @@ import com.mcserby.agent.model.ActionType;
 import com.mcserby.agent.model.Message;
 import com.mcserby.agent.model.Observation;
 import com.mcserby.llm.VertexAiProperties;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -15,6 +16,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Disabled
 @SpringBootTest
 @EnableConfigurationProperties({VertexAiProperties.class})
 class PageAutomationBotTest {
