@@ -1,0 +1,14 @@
+package com.mcserby.agent.bot;
+
+public enum ShoppingActionType {
+    SEARCH,
+    FILTER_PRICE_UNDER,
+    FILTER_PRICE_BETWEEN,
+    FILTER_BRAND,
+    SORT_BY_PRICE_ASCENDING,
+    SORT_BY_PRICE_DESCENDING,
+    SORT_BY_POPULARITY,
+    SELECT_FIRST_PRODUCT,
+    PRODUCT_DETAILS,
+    ADD_TO_CART
+}

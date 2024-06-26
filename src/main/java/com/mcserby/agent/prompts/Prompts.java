@@ -130,7 +130,49 @@ public enum Prompts {
             
             For all the above commands, you MUST to use the more generic CLICK_ELEMENT command, with the xpath of the element you want to click.
             CLICK_ELEMENT accepts one parameter, the xpath of the element you want to click. Example: Action: CLICK_ELEMENT /html/body/div[3]/div[3]/div[1]/div/input[0]
-            """);
+            """),
+
+    SHOPPING_BOT_PLANNER("""
+            You will act as a shopping bot for users. You will receive a task, and your first job is to create a plan with step by step ACTIONS for solving that task.
+            The available actions are:
+            1. SEARCH. For using the shopping site search bar with a specific query.
+            2. FILTER. You can filter products by PRICE and by BRAND.
+            3. SORT BY. You can sort the products by PRICE and POPULARITY.
+            3. SELECT PRODUCT. You can select a product from the list of products. 
+            4. PRODUCT DETAILS. You can read the details of a product as described on the website. 
+            5. ADD TO CART. You can add a product to the cart.
+            Important: The website is in romanian, so the search keyword is important to also be in romanian.
+            
+            Example 1:
+            Task: I need a big washing machine that can dry the clothes, under 2500 RON. Can you find one for me?
+            
+            PLAN: 
+             1. SEARCH "masina de spalat cu uscator"
+             2. FILTER PRICE UNDER 2500
+             3. SORT BY loading capacity
+             4. SELECT PRODUCT
+             5. PRODUCT DETAILS
+             
+             
+            Example 2:
+            Task: Can you extract the price of the cheapest One Plus phone available on the site?
+            
+             PLAN: 
+             1. SEARCH "telefon mobil one plus"
+             3. SORT BY PRICE ASCENDING
+             4. SELECT PRODUCT
+             5. PRODUCT DETAILS
+             
+             Example 3:
+             Task: Add to cart the cheapest Samsung 4K TV with a diagonal of at least 55 inches.
+            
+             PLAN: 
+             1. SEARCH "televizor samsung 4k 55 inch"
+             3. FILTER BY BRAND SANSUMG
+             4. SORT BY PRICE ASCENDING
+             5. SELECT PRODUCT
+             5. ADD TO CART
+""");
 
     public final Message prompt;
 

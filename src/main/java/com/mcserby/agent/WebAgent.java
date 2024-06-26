@@ -3,7 +3,7 @@ package com.mcserby.agent;
 import com.google.cloud.vertexai.api.*;
 import com.google.protobuf.Value;
 import com.mcserby.agent.bot.PageAutomationBot;
-import com.mcserby.agent.model.Action;
+import com.mcserby.agent.model.BasicAction;
 import com.mcserby.agent.model.ActionType;
 import com.mcserby.agent.model.Message;
 import com.mcserby.agent.model.MessageType;
@@ -55,7 +55,7 @@ public class WebAgent {
                 List<String> thoughts = extractThoughts(currentResult);
                 thoughts.stream().map(t -> new Message(MessageType.THOUGHT, t, false)).forEach(this.conversation::add);
 
-                List<Action> actions = extractAction(currentResult);
+                List<BasicAction> actions = extractAction(currentResult);
                 actions.stream().map(a -> new Message(MessageType.ACTION, a.toString(), false)).forEach(this.conversation::add);
                 actions.stream().map(a -> pageAutomationBot.performAction(sessionId, a)).forEach(this.conversation::add);
             }
@@ -77,7 +77,7 @@ public class WebAgent {
             GenerateContentResponse result = model.generate(currentPrompt);
             List<String> thoughts = extractThoughts(result);
             thoughts.stream().map(t -> new Message(MessageType.THOUGHT, t, false)).forEach(this.conversation::add);
-            List<Action> actions = extractOneLinerAction(result);
+            List<BasicAction> actions = extractOneLinerAction(result);
             actions.stream().map(a -> pageAutomationBot.performAction(sessionId, a)).forEach(this.conversation::add);
             return this.conversation.getLast();
         } catch (Exception e) {
@@ -86,7 +86,7 @@ public class WebAgent {
         }
     }
 
-    private static List<Action> extractOneLinerAction(GenerateContentResponse result) {
+    private static List<BasicAction> extractOneLinerAction(GenerateContentResponse result) {
         String responseAsText = getResponseAsText(result);
         return toAction(responseAsText)
                 .map(List::of).orElse(List.of());
@@ -128,10 +128,10 @@ public class WebAgent {
         return thoughts;
     }
 
-    private List<Action> extractAction(GenerateContentResponse currentResult) {
+    private List<BasicAction> extractAction(GenerateContentResponse currentResult) {
         String lineContains = "Action:";
         Stream<String> lineStream = extractSemiStructuredContent(currentResult, lineContains);
-        List<Action> actions = lineStream.map(WebAgent::toAction)
+        List<BasicAction> actions = lineStream.map(WebAgent::toAction)
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .toList();
@@ -164,7 +164,7 @@ public class WebAgent {
                 .filter(line -> line.contains(lineContains));
     }
 
-    public static Optional<Action> toAction(FunctionCall functionCall) {
+    public static Optional<BasicAction> toAction(FunctionCall functionCall) {
         if (Arrays.stream(ActionType.values()).noneMatch(a -> a.name().equals(functionCall.getName().toUpperCase()))) {
             return Optional.empty();
         }
@@ -175,10 +175,10 @@ public class WebAgent {
         if (fieldsMap.containsKey("url")) {
             value = fieldsMap.get("url").getStringValue();
         }
-        return Optional.of(new Action(type, elementIdentifier, value));
+        return Optional.of(new BasicAction(type, elementIdentifier, value));
     }
 
-    public static Optional<Action> toAction(String actionAsString) {
+    public static Optional<BasicAction> toAction(String actionAsString) {
         // navigate_to_url, click_element, send_keys_to_element
         String function = actionAsString.replace("Action: ", "").trim();
         String[] functionParts = function.split("\\h+");
@@ -188,20 +188,20 @@ public class WebAgent {
         }
         if (function.toUpperCase().contains("NAVIGATE_TO_URL")) {
             String url = sanitize(functionParts[1]);
-            return Optional.of(new Action(ActionType.NAVIGATE_TO_URL, null, url));
+            return Optional.of(new BasicAction(ActionType.NAVIGATE_TO_URL, null, url));
         }
         if (function.toUpperCase().contains("BROWSE_TO")) {
             String url = sanitize(functionParts[1]);
-            return Optional.of(new Action(ActionType.BROWSE_TO, null, url));
+            return Optional.of(new BasicAction(ActionType.BROWSE_TO, null, url));
         }
         if (function.toUpperCase().contains("CLICK_ELEMENT")) {
-            return Optional.of(new Action(ActionType.CLICK, functionParts[1], null));
+            return Optional.of(new BasicAction(ActionType.CLICK, functionParts[1], null));
         }
         if (function.toUpperCase().contains("CLICK")) {
-            return Optional.of(new Action(ActionType.CLICK, functionParts[1], null));
+            return Optional.of(new BasicAction(ActionType.CLICK, functionParts[1], null));
         }
         if (function.toUpperCase().contains("SEARCH")) {
-            return Optional.of(new Action(ActionType.FILL_INPUT, functionParts[1], functionParts[2]));
+            return Optional.of(new BasicAction(ActionType.FILL_INPUT, functionParts[1], functionParts[2]));
         }
         return Optional.empty();
     }
