@@ -2,9 +2,9 @@ package com.mcserby.agent.model;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 
-public record Action(@JsonAlias("action_type") ActionType actionType,
-                     @JsonAlias("element_identifier") String elementIdentifier,
-                     String value) {
+public record BasicAction(@JsonAlias("action_type") ActionType actionType,
+                          @JsonAlias("element_identifier") String elementIdentifier,
+                          String value) {
 
     @Override
     public String toString() {

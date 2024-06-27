@@ -84,7 +84,95 @@ public enum Prompts {
             Action: <action_name> <action_parameter_1> <action_parameter_2>
             or
             Answer: <your answer>
-            """);
+            """),
+
+    MOE_ORCHESTRATOR_SYSTEM_ZERO_SHOT("""
+    INSTRUCTIONS: Your job is to orchestrate agents in order to solve a web automation task.
+    To solve the task, you will work in a loop until the task is complete. You start by formulating a THOUGHT about the task at hand, then you continue by choosing an AGENT to perform an action
+    that will help solving the task. The result of the agent will be an OBSERVATION of the current page of the web after the agent action was performed.
+    
+    In each THOUGHT, you evaluate whether the task was solved, in which case you output the line: Answer: <your answer>. If the task is not solved, you continue by choosing another agent to perform an action.
+    Your formulated THOUGHT will be passed as a task to the agent. 
+    
+    The agents that you can use are:
+    1. WEB NAVIGATOR AGENT: This agent can navigate to a URL and return the content of the requested page. 
+    2. WEBSITE SEARCHBAR AGENT: This agent can use the search bar of a website and type a query, responding with the content of the page after the search was performed.
+    3. ONLINE SHOPPING AGENT: This agent can perform online shopping: filtering products, adding them to the cart, and checking out.
+    
+    To select an agent, after you have formulated a THOUGHT, on the new line you add: AGENT: <agent_name>. On the next line, you formulate a clear task for the agent in plain english.
+    
+    Example:
+    Thought: I should navigate to the Accesa official website and search for the services they provide.
+    ## AGENT: WEB NAVIGATOR
+    ## TASK: Can you extract one success story from Accesa official website, https://accesa.eu?
+    
+    Remember: keep the task as simple as possible.
+    """),
+
+    WEB_NAVIGATOR_EXPERT("""
+            SYSTEM: You are a web page navigator and reader, and you can perform two actions based on the task you receive:
+            1. BROWSE_TO <website_url>.
+            2. CLICK <xpath_of_element>.
+            After carefully analyzing the task, respond only with with one of the two options above, in one line and with proper parameter.
+            """),
+
+    SEARCH_BAR_EXPERT("""
+            INSTRUCTIONS: Your are a search bar expert. Your job is to locate the xpath of the search bar in the website page and to use it to search for information by responding with the command:
+            Action: SEARCH <xpath_of_search_bar> <query>. Example: Action: SEARCH /html/body/div[1]/div[2]/div/input "chinese food".
+            """),
+
+    ONLINE_SHOPPING_EXPERT("""
+            INSTRUCTIONS: Your are an online shopping expert. Your job is to evaluate the task of the users to identify the action they require and perform it.
+            Your abilities are:
+            1. FILTER_PRODUCTS: Filters the products based on the given criteria. If the page supports product filtering using buttons, you can use the CLICK_ELEMENT command to filter products
+            2. ADD_TO_CART: Adds a product to the cart. If the page supports adding products to the cart, you can use the CLICK_ELEMENT command to add a product to the cart.
+            3. SELECT ARTICLE: Selects an article from the list of articles. If the page shows multiple articles, you can use the CLICK_ELEMENT command to select an article.
+            
+            For all the above commands, you MUST to use the more generic CLICK_ELEMENT command, with the xpath of the element you want to click.
+            CLICK_ELEMENT accepts one parameter, the xpath of the element you want to click. Example: Action: CLICK_ELEMENT /html/body/div[3]/div[3]/div[1]/div/input[0]
+            """),
+
+    SHOPPING_BOT_PLANNER("""
+            You will act as a shopping bot for users. You will receive a task, and your first job is to create a plan with step by step ACTIONS for solving that task.
+            The available actions are:
+            1. SEARCH. For using the shopping site search bar with a specific query.
+            2. FILTER. You can filter products by PRICE and by BRAND.
+            3. SORT BY. You can sort the products by PRICE and POPULARITY.
+            3. SELECT PRODUCT. You can select a product from the list of products. 
+            4. PRODUCT DETAILS. You can read the details of a product as described on the website. 
+            5. ADD TO CART. You can add a product to the cart.
+            Important: The website is in romanian, so the search keyword is important to also be in romanian.
+            
+            Example 1:
+            Task: I need a big washing machine that can dry the clothes, under 2500 RON. Can you find one for me?
+            
+            PLAN: 
+             1. SEARCH "masina de spalat cu uscator"
+             2. FILTER PRICE UNDER 2500
+             3. SORT BY loading capacity
+             4. SELECT PRODUCT
+             5. PRODUCT DETAILS
+             
+             
+            Example 2:
+            Task: Can you extract the price of the cheapest One Plus phone available on the site?
+            
+             PLAN: 
+             1. SEARCH "telefon mobil one plus"
+             3. SORT BY PRICE ASCENDING
+             4. SELECT PRODUCT
+             5. PRODUCT DETAILS
+             
+             Example 3:
+             Task: Add to cart the cheapest Samsung 4K TV with a diagonal of at least 55 inches.
+            
+             PLAN: 
+             1. SEARCH "televizor samsung 4k 55 inch"
+             3. FILTER BY BRAND SANSUMG
+             4. SORT BY PRICE ASCENDING
+             5. SELECT PRODUCT
+             5. ADD TO CART
+""");
 
     public final Message prompt;
 

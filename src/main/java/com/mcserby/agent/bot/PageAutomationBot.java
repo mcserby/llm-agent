@@ -5,10 +5,7 @@ import com.mcserby.agent.model.*;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.slf4j.Logger;
@@ -37,7 +34,11 @@ public class PageAutomationBot {
         }
     }
 
-    public Message performAction(UUID sessionId, Action action) {
+    public WebDriver getDriver(UUID sessionId) {
+        return sessions.get(sessionId);
+    }
+
+    public Message performAction(UUID sessionId, BasicAction action) {
         LOGGER.info("Performing action: {}", action);
         WebDriver driver;
         if (sessions.containsKey(sessionId)) {
@@ -55,19 +56,35 @@ public class PageAutomationBot {
                     driver.get(action.value());
                     break;
                 }
+            case BROWSE_TO:
+                if (driver.getCurrentUrl().equals(action.value())) {
+                    LOGGER.info("Preventing LLM Agent loop by not navigating to the same URL...");
+                    break;
+                } else {
+                    driver.get(action.value());
+                    break;
+                }
             case FILL_INPUT:
                 List<WebElement> fillElement = driver.findElements(By.xpath(action.elementIdentifier()));
-                if(fillElement.isEmpty()){
+                if (fillElement.isEmpty()) {
                     return new Message(MessageType.OBSERVATION, "No element with XPATH: " + action.elementIdentifier() + " exists.", false);
                 }
                 WebElement inputElement = fillElement.getFirst();
                 ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", inputElement);
                 trySleep(200);
                 driver.findElement(By.xpath(action.elementIdentifier())).sendKeys(action.value());
+
+                break;
+            case FILL_INPUT_BY_ID:
+                WebElement fillElementById = driver.findElement(By.id(action.elementIdentifier()));
+                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", fillElementById);
+                trySleep(200);
+                fillElementById.sendKeys(action.value());
+                fillElementById.sendKeys(Keys.ENTER);
                 break;
             case CLICK:
                 List<WebElement> clickElements = driver.findElements(By.xpath(action.elementIdentifier()));
-                if(clickElements.isEmpty()){
+                if (clickElements.isEmpty()) {
                     return new Message(MessageType.OBSERVATION, "No element with XPATH: " + action.elementIdentifier(), false);
                 }
                 WebElement element = clickElements.getFirst();
@@ -75,12 +92,31 @@ public class PageAutomationBot {
                 trySleep(200);
                 element.click();
                 break;
+            case CLICK_FIRST_CHILD:
+                WebElement parentElement = driver.findElement(By.id(action.elementIdentifier()));
+                Optional<WebElement> firstChild = parentElement.findElements(By.xpath("./child::*")).stream().limit(1).findFirst();
+                if (firstChild.isEmpty()) {
+                    return new Message(MessageType.OBSERVATION, "No object found.", false);
+                }
+                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", firstChild.get());
+                trySleep(200);
+                String value = firstChild.get().getAttribute(action.value());
+                firstChild.get().click();
+                return new Message(MessageType.OBSERVATION, value, false);
+            case GET_FIRST_N_CHILDREN_ATTRIBUTE:
+                WebElement parentElement2 = driver.findElement(By.id(action.elementIdentifier()));
+                String[] parts = action.value().split(" ");
+                int size = Integer.parseInt(parts[0]);
+                String attribute = parts[1];
+                List<String> children = parentElement2.findElements(By.xpath("./child::*")).stream().limit(size).map(e -> e.getAttribute(attribute)).toList();
+                return new Message(MessageType.OBSERVATION, String.join(", ", children), false);
         }
         sessions.putIfAbsent(sessionId, driver);
         return new Message(MessageType.OBSERVATION, processHtml(driver).render(), true);
     }
 
     private static WebDriver initDriver() {
+        System.setProperty("webdriver.chrome.driver", "C:\\projects\\chromedriver-win64\\chromedriver.exe");
         WebDriver driver;
         ChromeOptions options = new ChromeOptions();
         options.addArguments("profile-directory=Profile 1");
@@ -89,7 +125,7 @@ public class PageAutomationBot {
         return driver;
     }
 
-    private void trySleep(int millis) {
+    public void trySleep(int millis) {
         try {
             Thread.sleep(millis);
         } catch (InterruptedException e) {
@@ -198,19 +234,19 @@ public class PageAutomationBot {
 
     private SimpleElement toJsoupElement(String currentXpath, Element element) {
         return new SimpleElement(element.tagName(),
-                shouldHaveXpath(element) ? currentXpath: null,
-                element.hasAttr("href")? element.attribute("href").getValue(): null,
-                element.hasAttr("id")? element.attribute("id").getValue(): null,
-                element.hasAttr("placeholder")? element.attribute("placeholder").getValue(): null,
+                shouldHaveXpath(element) ? currentXpath : null,
+                element.hasAttr("href") ? element.attribute("href").getValue() : null,
+                element.hasAttr("id") ? element.attribute("id").getValue() : null,
+                element.hasAttr("placeholder") ? element.attribute("placeholder").getValue() : null,
                 getTextOrValue(element),
-                element.hasAttr("type")? element.attribute("type").getValue(): null,
+                element.hasAttr("type") ? element.attribute("type").getValue() : null,
                 getLabelOrAreaLabel(element), List.of());
     }
 
     private SimpleElement toElement(String currentXpath, WebElement element) {
 
         return new SimpleElement(element.getTagName(),
-                shouldHaveXpath(element) ? currentXpath: null,
+                shouldHaveXpath(element) ? currentXpath : null,
                 element.getAttribute("href"),
                 element.getAttribute("id"),
                 element.getAttribute("placeholder"),
@@ -232,7 +268,7 @@ public class PageAutomationBot {
     }
 
     private String getLabelOrAreaLabel(org.jsoup.nodes.Element element) {
-        return element.hasAttr("label")? element.attribute("label").getValue() : element.hasAttr("area-label")? element.attribute("area-label").getValue(): null;
+        return element.hasAttr("label") ? element.attribute("label").getValue() : element.hasAttr("area-label") ? element.attribute("area-label").getValue() : null;
     }
 
     private String getTextOrValue(WebElement element) {
@@ -240,7 +276,7 @@ public class PageAutomationBot {
     }
 
     private String getTextOrValue(Element element) {
-        return element.hasText() ? element.text() : element.hasAttr("value")? element.attribute("value").getValue(): null;
+        return element.hasText() ? element.text() : element.hasAttr("value") ? element.attribute("value").getValue() : null;
     }
 
     public void closeSession(UUID sessionId) {
